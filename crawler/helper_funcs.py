@@ -16,7 +16,7 @@ def filter_urls_by_sitemap(urls: List):
     urls = [u for u in urls if "gadmissions" not in u["url"]]
     urls = [u for u in urls if "cms." not in u["url"]]
     urls = [u for u in urls if "tender-notice" not in u["url"]]
-
+    
     return urls
 
 
@@ -70,8 +70,6 @@ def save_crawl_result(result, crawl_data_dir: Path = DATA_DIR) -> CrawlResults:
         memory_usage_mb=memory
     )
 
-    GLOBAL_RESULT_FILE.mkdir(exist_ok=True, parents=True)
-
     # Load existing data
     if GLOBAL_RESULT_FILE.exists():
         try:
@@ -83,7 +81,7 @@ def save_crawl_result(result, crawl_data_dir: Path = DATA_DIR) -> CrawlResults:
         all_results = []
 
     # Append new result
-    all_results.append(crawl_result.dict())
+    all_results.append(crawl_result.model_dump(mode="json"))
 
     # Save back
     with GLOBAL_RESULT_FILE.open("w", encoding="utf-8") as f:

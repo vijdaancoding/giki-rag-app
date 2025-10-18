@@ -62,9 +62,8 @@ async def crawl_pages(urls: List[str]):
     crawl_config = CrawlerRunConfig(
         excluded_tags=["header", "footer", "nav", "form", "aside"],
         markdown_generator=md_generator,
-        cache_mode=CacheMode.BYPASS,
-        stream=False,
-        concurrency=5
+        cache_mode=CacheMode.ENABLED,
+        stream=False
     )
 
     dispatcher = MemoryAdaptiveDispatcher(
@@ -99,15 +98,15 @@ async def crawl_pages(urls: List[str]):
                 logger.warning("Received None result from crawler, Skipping...")
                 continue
 
-                if result.success:
-                    dr = result.dispatch_result
-                    logger.info(f"Successfully Crawled URL {result.url} | Memory: {dr.memory_usage:.1f}MB | Duration: {dr.end_time - dr.start_time}")
-                    stored = save_crawl_result(result)
-                    stored_results.append(stored)
-                elif result.status_code == 403 and "robots.txt" in result.error_message:
-                    logger.warning(f"Skipped URL {result.url} - blocked by robots.txt")
-                else:
-                    logger.error(f"Failed to Crawl URL: {result.url}: {result.error_message}")
+            if result.success:
+                dr = result.dispatch_result
+                logger.info(f"Successfully Crawled URL {result.url} | Memory: {dr.memory_usage:.1f}MB | Duration: {dr.end_time - dr.start_time}")
+                stored = save_crawl_result(result)
+                stored_results.append(stored)
+            elif result.status_code == 403 and "robots.txt" in result.error_message:
+                logger.warning(f"Skipped URL {result.url} - blocked by robots.txt")
+            else:
+                logger.error(f"Failed to Crawl URL: {result.url}: {result.error_message}")
 
         return stored_results
 

@@ -5,7 +5,7 @@ import json
 
 class CrawlResults(BaseModel):
     url:str
-    status_code: Optional[str]
+    status_code: Optional[int]
     success: bool
     crawled_at: datetime = Field(default_factory=datetime.utcnow)
     markdown_path: Optional[str] = None
