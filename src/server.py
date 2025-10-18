@@ -67,7 +67,7 @@ def pinecone_query(query: str, top_k: int = 5):
     return "\n---\n".join(formatted_results)
 
 
-@mcp.tool(timeout=30)
+@mcp.tool()
 def ai_chat(query: str):
     
     pinecone_results = pinecone_query(query)
