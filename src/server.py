@@ -1,3 +1,4 @@
+from google import genai
 from mcp.server.fastmcp import FastMCP
 from sentence_transformers import SentenceTransformer
 from pinecone import Pinecone
@@ -14,6 +15,7 @@ logger = create_logger("mcp_logger", "mcp.log")
 load_dotenv()
 
 PINECONE_API = os.getenv("PINECONE_API")
+GOOGLE_API = os.getenv("GOOGLE_API")
 INDEX_NAME = "giki-crawl"  
 
 pc = Pinecone(api_key=PINECONE_API)
@@ -21,7 +23,7 @@ index = pc.Index(INDEX_NAME)
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-mcp = FastMCP("giki-rag-app")
+mcp = FastMCP("giki-rag-app", host="0.0.0.0", port=8000)
 
 @mcp.tool()
 def pinecone_query(query: str, top_k: int = 5):
@@ -63,6 +65,29 @@ def pinecone_query(query: str, top_k: int = 5):
         formatted_results.append(f"Score: {score}\nText: {text_snippet}")
 
     return "\n---\n".join(formatted_results)
+
+
+@mcp.tool(timeout=30)
+def ai_chat(query: str):
+    
+    pinecone_results = pinecone_query(query)
+
+     # Step 2: Summarize / Generate response using Gemini
+    prompt = f"Given the following context from GIKI resources:\n{pinecone_results}\nAnswer the user's query concisely:\n{query}"
+
+    # Initialize Gemini client
+    client = genai.Client(api_key=GOOGLE_API)
+    
+    start_llm = time.time()
+    # Generate response using Gemini
+    response = client.models.generate_content_async(
+        model="gemini-2.5-flash", contents=prompt
+    )
+    end_llm = time.time()
+    logger.info(f"Total Time Taken by Gemini: {end_llm - start_llm:.4f}s")
+
+    return response.text
+
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
