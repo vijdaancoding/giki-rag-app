@@ -68,7 +68,7 @@ def pinecone_query(query: str, top_k: int = 5):
 
 
 @mcp.tool()
-async def ai_chat(query: str):
+def ai_chat(query: str):
     
     pinecone_results = pinecone_query(query)
 
@@ -80,7 +80,7 @@ async def ai_chat(query: str):
     
     start_llm = time.time()
     # Generate response using Gemini
-    response = await client.models.generate_content_async(
+    response = client.models.generate_content(
         model="gemini-2.5-flash", contents=prompt
     )
     end_llm = time.time()
