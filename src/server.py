@@ -1,11 +1,10 @@
 from google import genai
 from mcp.server.fastmcp import FastMCP
-from sentence_transformers import SentenceTransformer
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pinecone import Pinecone
 from dotenv import load_dotenv
-from typing import Dict, List
 import time
-import logging
 import os
 
 from utils.logger_utils import create_logger
@@ -16,17 +15,49 @@ load_dotenv()
 
 PINECONE_API = os.getenv("PINECONE_API")
 GOOGLE_API = os.getenv("GOOGLE_API")
-INDEX_NAME = "giki-crawl"  
+INDEX_NAME = "giki-rag-app-db"  
 
 pc = Pinecone(api_key=PINECONE_API)
 index = pc.Index(INDEX_NAME)
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 mcp = FastMCP("giki-rag-app", host="0.0.0.0", port=8000)
 
+def format_pinecone_results(results, max_chars=10000):
+    """
+    Format Pinecone query results into a single MCP-friendly string.
+    Each match includes score, title, url, category, and a text snippet.
+    """
+    formatted_results = []
+
+    # Handle both "matches" (old SDK) and "result.hits" (new SDK)
+    matches = results.get("matches") or results.get("result", {}).get("hits", [])
+    
+    for match in matches:
+        fields = match.get("fields", match.get("metadata", {}))
+        score = round(match.get("_score", match.get("score", 0)), 3)
+
+        title = fields.get("title", "[No title]")
+        url = fields.get("url", "[No URL]")
+        category = fields.get("category", "[No category]")
+        content = fields.get("content", "[No text metadata]")
+
+        # Truncate long content for readability
+        snippet = content[:max_chars] + ("..." if len(content) > max_chars else "")
+
+        formatted_results.append(
+            f"Score: {score}\n"
+            f"Title: {title}\n"
+            f"Category: {category}\n"
+            f"URL: {url}\n"
+            f"Text: {snippet}"
+        )
+
+    return "\n---\n".join(formatted_results)
+
+
 @mcp.tool()
-def pinecone_query(query: str, top_k: int = 5):
+def pinecone_query(query: str, top_k: int = 3):
 
     """
     Use this tool to search information using Pinecone API
@@ -38,33 +69,23 @@ def pinecone_query(query: str, top_k: int = 5):
         The top-k search results
     """
 
-    start_embed = time.time()
-    query_vector = embedder.encode(query).tolist()
-    end_embed = time.time()
-    logger.info(f"Embedding Time for Query: {query} | {end_embed - start_embed:.4f}s")
 
     start_query = time.time()
     try:
-        results = index.query(vector=query_vector, 
-                              top_k=top_k, 
-                              include_metadata=True)
+        results = index.search(
+            namespace="ai-lab",
+            query={
+                "inputs": {"text": query},
+                "top_k": top_k
+            }            
+        )
     except Exception as e:
         logger.error(f"Pinecone Query Failed: {e}")
         return f"Error during Query: {e}"
     end_query = time.time()
     logger.info(f"Pinecone Query Time: {end_query - start_query:.4f}s")
-
-    if not results or "matches" not in results:
-        return "No results found or query failed"
-
-    formatted_results = []
-    for match in results["matches"]:
-        meta = match.get("metadata", {})
-        text_snippet = meta.get("content", "[No text metadata]")
-        score = round(match.get("score", 0), 3)
-        formatted_results.append(f"Score: {score}\nText: {text_snippet}")
-
-    return "\n---\n".join(formatted_results)
+    
+    return format_pinecone_results(results) 
 
 
 @mcp.tool()
