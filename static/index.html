@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MCP Client</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 50px auto; }
+    textarea { width: 100%; height: 100px; margin-top: 10px; }
+    button { margin-top: 10px; padding: 10px 20px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>FastMCP Frontend</h2>
+  <textarea id="query" placeholder="Enter your query..."></textarea>
+  <button id="sendBtn">Send</button>
+  <h3>Response:</h3>
+  <pre id="response"></pre>
+
+  <script>
+    const MCP_URL = "/mcp"; // replace with your MCP endpoint
+
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+      const query = document.getElementById("query").value;
+      document.getElementById("response").textContent = "Loading...";
+
+      try {
+        const res = await fetch(MCP_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        document.getElementById("response").textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById("response").textContent = "Error: " + err;
+      }
+    });
+  </script>
+</body>
+</html>
+
